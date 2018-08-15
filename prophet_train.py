@@ -4,6 +4,35 @@ import pandas as pd
 import numpy as np
 import matplotlib.pylab as plt
 import datetime as dt
+import argparse
+
+class ProphetForecast:
+	def __init__(self, train, test):
+		self.train = train
+		self.test = test
+
+	def fit_model(self, n_predict):
+		m = Prophet(daily_seasonality=False, weekly_seasonality=False, yearly_seasonality=False)
+		m.fit(self.train)
+		future = m.make_future_dataframe(periods= len(self.test),freq= '1MIN')
+		self.forecast = m.predict(future)
+
+		return self.forecast
+
+	def graph(self):
+		fig = plt.figure(figsize=(40,10))
+		plt.plot(np.array(self.train["ds"]), np.array(self.train["y"]),'b', label="train", linewidth=3)
+		plt.plot(np.array(self.test["ds"]), np.array(self.test["y"]), 'g', label="test", linewidth=3)
+
+		forecast_ds = np.array(self.forecast["ds"])
+		plt.plot(forecast_ds, np.array(self.forecast["yhat"]), 'o', label="yhat", linewidth=3)
+		plt.plot(forecast_ds, np.array(self.forecast["yhat_upper"]), 'y', label="yhat_upper", linewidth=3)
+		plt.plot(forecast_ds, np.array(self.forecast["yhat_lower"]), 'y', label="yhat_lower", linewidth=3)
+		plt.xlabel("Timestamp")
+		plt.ylabel("Value")
+		plt.legend(loc=1)
+		plt.title("Prophet Model Forecast")
+		plt.show()
 
 def calc_delta(vals):
 	diff = vals - np.roll(vals, 1)
@@ -22,83 +51,50 @@ def monotonically_inc(vals):
 	else:
 		return False
 
-def fit_model(train, test, n_predict):
-	m = Prophet(daily_seasonality=False, weekly_seasonality=False, yearly_seasonality=False)
-	#m = Prophet()
-	m.fit(train)
-	future = m.make_future_dataframe(periods= len(test),freq= '1MIN')
-	forecast = m.predict(future)
-	forecast.head()
-	# forecasted_features = ['ds','yhat','yhat_lower','yhat_upper']
-	# fig = plt.figure()
-	# ax = plt.scatter(df['ds'], df['y'], color='c')
-	#m.plot(forecast,xlabel="Timestamp",ylabel="Value")
-	return m, forecast
+if __name__ == "__main__":
 
-def graph(train_df, test_df, forecast):
-	fig = plt.figure(figsize=(40,10))
-	plt.plot(np.array(train_df["ds"]), np.array(train_df["y"]),'b', label="train", linewidth=3)
-	plt.plot(np.array(test_df["ds"]), np.array(test_df["y"]), 'g', label="test", linewidth=3)
-	print("TRAIN")
-	print(train_df["ds"])
-	print("\n\nTEST")
-	print(test_df["ds"])
-	forecast_ds = np.array(forecast["ds"])
-	print("\n\nFORECAST")
-	print(forecast_ds)
-	plt.plot(forecast_ds, np.array(forecast["yhat"]), 'o', label="yhat", linewidth=3)
-	plt.plot(forecast_ds, np.array(forecast["yhat_upper"]), 'y', label="yhat_upper", linewidth=3)
-	plt.plot(forecast_ds, np.array(forecast["yhat_lower"]), 'y', label="yhat_lower", linewidth=3)
-	plt.xlabel("Timestamp")
-	plt.ylabel("Value")
-	plt.legend(loc=1)
-	plt.title("Prophet Model Forecast")
-	plt.show()
+	parser = argparse.ArgumentParser(description="run Prophet training on time series")
 
+	parser.add_argument("--metric", type=str, help='metric name', required=True)
 
-metric_name = "http_request_duration_microseconds_quantile"
-pkl_file = open("../pkl_data/" + metric_name + "_dataframes.pkl", "rb")
-dfs = pickle.load(pkl_file)
-pkl_file.close()
-key_vals = list(dfs.keys())
+	parser.add_argument("--key", type=int, help='key number')
+	args = parser.parse_args()
 
-for key in key_vals[728:729]:
-	df = dfs[key]
-	print(key)
-	df["values"] = df["values"].apply(pd.to_numeric)
-	vals = np.array(df["values"].tolist())
+	metric_name = args.metric
+	pkl_file = open("../pkl_data/" + metric_name + "_dataframes.pkl", "rb")
+	dfs = pickle.load(pkl_file)
+	pkl_file.close()
+	key_vals = list(dfs.keys())
 
-	# check if metric is a counter, if so, run AD on difference
-	if monotonically_inc(vals):
-		print("monotonically_inc")
-		vals = calc_delta(vals)
-	train = vals[0:int(0.7*len(vals))]
-	test = vals[int(0.7*len(vals)):]
-	print(np.max(test))
-	print(np.where(test == np.max(test)))
-	x_vals = np.arange(0,len(vals))
-	x_test = x_vals[int(0.7*len(vals)):]
-	x_train = x_vals[0:int(0.7*len(vals))]
+	selected = [args.key]
+	for ind in selected:
+		key = key_vals[ind]
+		df = dfs[key]
+		df = df.sort_values(by=['timestamps'])
+		print(key)
+		df["values"] = df["values"].apply(pd.to_numeric)
+		vals = np.array(df["values"].tolist())
 
-	train_dict = {}
-	train_dict["y"] = train
-	train_dict["ds"] = pd.date_range(start=dt.datetime(2018,5,10,7,8), periods=len(train), freq="1MIN").tolist()
-	train_df = pd.DataFrame(train_dict)
-	print(train_df.head())
-	mdl, forecast = fit_model(train_df, test, len(test))
+		df["ds"] = df["timestamps"]
+		df["y"] = df["values"]
+		# check if metric is a counter, if so, run AD on difference
+		if monotonically_inc(vals):
+			print("monotonically_inc")
+			vals = calc_delta(vals)
+			df["values"] = vals.tolist()
+		
+		train = df[0:int(0.7*len(vals))]
+		test = df[int(0.7*len(vals)):]
 
-	test_dict = {}
-	test_dict["y"] = test
-	test_dict["ds"] = pd.date_range(start=max(train_dict["ds"]), periods=len(test), freq="1MIN").tolist()
-	test_df = pd.DataFrame(test_dict)
+		pf = ProphetForecast(train, test)
+		forecast = pf.fit_model(len(test))
 
-	f = open("prophet_model_" + metric_name + ".pkl", "wb")
-	pickle.dump(mdl, f)
-	pickle.dump(forecast,f)
-	pickle.dump(train_df, f)
-	pickle.dump(test_df,f)
-	f.close()
-	
-	graph(train_df, test_df, forecast)
+		f = open("../prophet_forecasts/prophet_model_" + metric_name + "_" + str(args.key) + ".pkl", "wb")
+		pickle.dump(forecast,f)
+		pickle.dump(train, f)
+		pickle.dump(test,f)
+		f.close()
+		
+		pf.graph()
 
 

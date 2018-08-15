@@ -1,5 +1,5 @@
 import pickle
-import pylab as pl
+import matplotlib.pyplot as plt
 import numpy as np
 from scipy.stats import norm
 
@@ -32,7 +32,7 @@ class AnomalyDetector:
 		std = np.std(w)
 		mu_bar = np.mean(w_prime)
 		
-		L_t = norm.pdf(((mu_bar - mu)/std))
+		L_t = norm.sf(((mu_bar - mu)/std))
 		# print(L_t)
 		if L_t >= 1 - self.epsilon:
 			return 1
@@ -84,37 +84,106 @@ class AnomalyDetector:
 		flag_anomaly = set_tail.intersection(set_acc)
 		return flag_anomaly
 
-def graph(train, test, extrapolation, anomalies, metric_name):
+def detect_anomalies(predictions, data):
+    if len(predictions) != len(data) :
+        raise IndexError
+    
+    # parameters
+    lower_bound_thresh = predictions["yhat_lower"].min() 
+    upper_bound_thresh = predictions["yhat_upper"].max() 
+    diff_thresh = 2*data["values"].std() 
+    acc_thresh = int(0.1*np.shape(predictions)[0])
+    epsilon = .1 
+
+    diffs = []
+    acc = Accumulator(acc_thresh)
+    preds = np.array(predictions["yhat"])
+    dat = np.array(data["values"])
+    for i in range(0, np.shape(predictions)[0]):
+        diff = preds[i] - dat[i]
+        if abs(diff) > diff_thresh:
+            # upper bound anomaly, increment counter
+            acc.inc(1)
+        elif dat[i] < lower_bound_thresh:
+            # found trough, decrement so that acc will decay to 0
+            acc.inc(-3)
+        elif dat[i] > upper_bound_thresh:
+            # found peak, decrement so that acc will decay to 0
+            acc.inc(-3)
+        else:
+            # no anomaly, decrement by 2
+            acc.inc(-2)
+
+        diffs.append(max(diff, 0))
+    
+    if acc.count() > acc.thresh:
+        acc_anomaly = True
+    else:
+        acc_anomaly = False
+    w_size = int(0.8*len(data))
+    w_prime_size = len(data) - w_size
+
+    w = diffs[0:w_size]
+    w_prime = diffs[w_size:]
+
+    w_mu = np.mean(w)
+    w_std = np.std(w)
+    w_prime_mu = np.mean(w_prime)
+
+    if w_std == 0:
+        L_t = 0
+    else:
+        L_t = 1 - norm.sf((w_prime_mu - w_mu)/w_std)
+
+    print(L_t)
+    if L_t >= 1 - epsilon:
+        tail_prob_anomaly = True
+    else:
+        tail_prob_anomaly = False
+
+    return acc_anomaly and tail_prob_anomaly 
+
+
+
+def graph(train, test, forecast, anomalies, metric_name):
 	len_train = len(train)
-	fig = pl.figure(figsize=(20,10))
-	x_extrapolation = np.arange(0, extrapolation.size)
-	x_train = np.arange(0, train.size)
-	x_test = np.arange(train.size , extrapolation.size)
-	ax = pl.axes() 
-	ax.plot(x_train, train, 'b', label = 'train', linewidth = 3)
-	ax.plot(x_test, test, 'g', label = 'test', linewidth = 3)
-	ax.plot(x_test, extrapolation[x_train.size:x_extrapolation.size], 'y', label = 'forecast')
+	fig = plt.figure(figsize=(20,10))
+	ax = plt.axes() 
+	ax.plot(np.array(train["timestamps"]), np.array(train["values"]), 'b', label = 'train', linewidth = 3)
+	ax.plot(np.array(test["timestamps"]), np.array(test["values"]), 'g', label = 'test', linewidth = 3)
+	ax.plot(np.array(forecast["ds"]), np.array(forecast["yhat"]), 'y', label = 'yhat')
 	title = "Forecast for " + metric_name
 	ax.set_title(title)
 	ax.set_xlabel("Timestamp")
 	ax.set_ylabel("Value")
 	trans = mtransforms.blended_transform_factory(ax.transData, ax.transAxes)
 	for a in anomalies:
-		bool_arr = x_test>(a-100+len_train)
-		bool_arr2 = x_test<(a+len_train)
-		bool_arr3 = np.logical_and(bool_arr, bool_arr2)
-		ax.fill_between(x_test,0,1, where=bool_arr3, facecolor='red', alpha=0.5, transform=trans)
-	pl.legend(loc=3)
-	pl.show()
+                bool_arr = np.repeat(False,len(forecast))
+                for i in range(a,a+100):
+                    bool_arr[i] = True
+                ax.fill_between(np.array(forecast["ds"]),0,1, where=bool_arr, facecolor='red', alpha=0.5, transform=trans)
+	plt.legend(loc=3)
+	plt.show()
 
-metric_name = "http_request_duration_microseconds_quantile"
-filename = "../forecasts/forecast_" + metric_name + ".pkl"
+metric_name = "http_request_duration_microseconds_quantile_728"
+filename = "../fourier_forecasts/forecast_" + metric_name + ".pkl"
 pkl_file = open(filename, "rb")
 forecast = pickle.load(pkl_file)
 train = pickle.load(pkl_file)
 test = pickle.load(pkl_file)
 pkl_file.close()
+forecast = forecast[np.shape(train)[0]:]
+print(len(forecast))
+print(len(test))
 
-ad = AnomalyDetector()
-anomaly_inds = ad.get_anomalies(test, forecast[-len(test):])
+inc = 0
+anomaly_inds = []
+for i in range(0,len(test)-100,100):
+    if detect_anomalies(forecast[i:i+100], test[i:i+100]) :
+        inc += 1
+        anomaly_inds.append(i)
+print(inc)
+    
+#ad = AnomalyDetector()
+#anomaly_inds = ad.get_anomalies(test, forecast[-len(test):])
 graph(train, test, forecast, anomaly_inds, metric_name)

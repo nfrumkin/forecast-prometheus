@@ -22,11 +22,11 @@ def load_files(files, file_format):
         # iterate through packets in file
         for pkt in jsons:
             # create a new dataframe with packet timestamp and values
-            df = pd.DataFrame.from_dict(pkt["values"])
-            df = df.rename( columns={0:"timestamps", 1:"values"})
-            df["timestamps"] = pd.to_datetime(df["timestamps"], unit='s')
-            df = df.sort_values(by=["timestamps"])
-            df.values = pd.to_numeric(df['values'], errors='coerce')
+            df = pd.DataFrame.from_dict(pkt["y"])
+            df = df.rename( columns={0:"ds", 1:"y"})
+            df["ds"] = pd.to_datetime(df["ds"], unit='s')
+            df = df.sort_values(by=["ds"])
+            df.y = pd.to_numeric(df['y'], errors='coerce')
             df = df.dropna()
             md = str(pkt["metric"])
             # append generated dataframe and metadata to collection
