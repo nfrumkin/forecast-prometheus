@@ -29,17 +29,18 @@ Summary Metric for a given target:
 A given time series is assigned a unique metadata label configuration which includes user-specified and default labels. We used some basic visualization techniques for metadata analysis including graphing and dimensionality reduction.
 
 One of the default labels that occurs in every metric and metadata packet is the instance. The instance is an ip which corresponds to the scraped target. However, these ip addresses are refreshed over time. We can see this as new instances pop up every once in a while.
-![](../../jupyter-notebooks/data-science-on-prom-metrics/imgs/kubelet_docker_instance_label.png)
+![](imgs/kubelet_docker_instance_label.png)
 
-![](../../jupyter-notebooks/data-science-on-prom-metrics/imgs/kubelet_docker_op_type_label.png)
-![](../../jupyter-notebooks/data-science-on-prom-metrics/imgs/t-sne_embedding.png)
+![](imgs/kubelet_docker_op_type_label.png)
+![](imgs/t-sne_embedding.png)
 ## **Forecasting**
 #### Exponential Smoothing
 kubelet_docker_operation_latency_microseconds_quantile
-![](../../jupyter-notebooks/data-science-on-prom-metrics/imgs/exp_smoothing.png)
+![](imgs/exp_smoothing.png)
 #### ARIMA Modelling
-![](../../jupyter-notebooks/data-science-on-prom-metrics/imgs/arima.png)
+![](imgs/arima.png)
 #### Prophet Modelling
+
 #### Fourier Extrapolation
 #### Further Research
 RNNs (LSTMs)
