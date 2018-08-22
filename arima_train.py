@@ -6,7 +6,10 @@ import matplotlib.pyplot as plt
 warnings.filterwarnings("ignore")
 import collections
 import argparse
-from statsmodels.tsa.api import ExponentialSmoothing, SimpleExpSmoothing, Holt
+from statsmodels.tsa.arima_model import ARIMA
+import statsmodels.api as sm
+from datetime import datetime
+from pandas.tools.plotting import autocorrelation_plot
 
 
 class Exp_Smoothing:
@@ -17,22 +20,32 @@ class Exp_Smoothing:
             self.ds_test = np.array(test["timestamps"])
 
         def fit_model(self, n_predict):
+                start_date = min(self.ds_train)
+                print(type(start_date))
+                dates = sm.tsa.datetools.dates_from_range("2018m3", length=len(self.ds_train))
 
-                fit = ExponentialSmoothing(self.train, seasonal_periods=4, trend='add', seasonal='add').fit(use_boxcox=True)
-                forecast = fit.forecast(n_predict)
+                df_train = pd.Series(self.train, index=dates)
+                #autocorrelation_plot(df_train)
+                #plt.show()
+                model = ARIMA(df_train, order=(1,0,1))
+                model_fit = model.fit(disp=0)
+                self.forecast = model_fit.forecast(steps=len(test))
 
                 ds = self.ds_test
                 
-                self.forecast = pd.DataFrame({"ds": ds, "yhat": forecast})
-
+                self.forecast = pd.DataFrame({"ds": ds, "yhat": self.forecast[0]})
+                print(len(self.forecast["yhat"]))
+                print(len(self.test))
                 return self.forecast
 
         def graph(self, metric_name, key):
                 plt.figure(figsize=(40,10))
                 
-                plt.plot(np.array(self.forecast["ds"]), np.array(self.forecast["yhat"]), 'y', label = 'yhat')
-                plt.plot(self.ds_train, self.train, '*b', label = 'train', linewidth = 3)
-                plt.plot(self.ds_test, self.test, '*g', label = 'test', linewidth = 3)
+                
+                plt.plot(self.ds_train, self.train, 'b', label = 'train', linewidth = 3)
+                print(np.array(self.forecast["yhat"]))
+                plt.plot(self.ds_test, self.test, 'k', label = 'test', linewidth = 3)
+                plt.plot(np.array(self.ds_test), np.array(self.forecast["yhat"]), 'g', label = 'yhat')
                 # pl.plot(np.array(self.forecast["ds"]), np.array(self.forecast["yhat_upper"]), 'y', label = 'yhat_upper')
                 # pl.plot(np.array(self.forecast["ds"]), np.array(self.forecast["yhat_lower"]), 'y', label = 'yhat_lower')
                 
@@ -82,7 +95,7 @@ if __name__ == "__main__":
                 df = df.sort_values(by=['timestamps'])
 
                 print(key)
-                df["values"] = df["values"].apply(pd.to_numeric)
+                df["values"] = df["values"].apply(pd.to_numeric)                
                 vals = np.array(df["values"].tolist())
 
                 # check if metric is a counter, if so, run AD on difference
@@ -93,9 +106,9 @@ if __name__ == "__main__":
                 
                 train = df[0:int(0.7*len(vals))]
                 test = df[int(0.7*len(vals)):]
-
+                print(len(test))
                 es = Exp_Smoothing(train, test)
-                forecast = es.fit_model(test.shape[0])
+                forecast = es.fit_model(len(test))
                 
                 f = open("../testing/exp_smoothing_forecasts/forecast_" + metric_name + "_" + str(args.key) + ".pkl", "wb")
                 pickle.dump(forecast, f)

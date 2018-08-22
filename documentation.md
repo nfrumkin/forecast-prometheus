@@ -30,7 +30,7 @@ A given time series is assigned a unique metadata label configuration which incl
 
 One of the default labels that occurs in every metric and metadata packet is the instance. The instance is an ip which corresponds to the scraped target. However, these ip addresses are refreshed over time. We can see this as new instances pop up every once in a while.
 ![](imgs/kubelet_docker_instance_label.png)
-
+![](imgs/cloudprovider_aws_api_request_duration_seconds_instance_label.png)
 ![](imgs/kubelet_docker_op_type_label.png)
 ![](imgs/t-sne_embedding.png)
 ## **Forecasting**
@@ -40,12 +40,18 @@ kubelet_docker_operation_latency_microseconds_quantile
 #### ARIMA Modelling
 ![](imgs/arima.png)
 #### Prophet Modelling
-
+![](imgs/prophet.png)
+![](imgs/prophet2.png)
 #### Fourier Extrapolation
+![](imgs/fourier.png)
+![](imgs/fourier2.png)
 #### Further Research
 RNNs (LSTMs)
 
 ## **Anomaly Detection Decision Rules**
+
 ## **Results**
 Comparing Prophet and Fourier
+![](imgs/compare_prophet_fourier.png)
+![](imgs/compare_prophet_fourier2.png)
 ## **Conclusion**

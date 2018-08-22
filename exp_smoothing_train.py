@@ -30,9 +30,9 @@ class Exp_Smoothing:
         def graph(self, metric_name, key):
                 plt.figure(figsize=(40,10))
                 
-                plt.plot(np.array(self.forecast["ds"]), np.array(self.forecast["yhat"]), 'y', label = 'yhat')
-                plt.plot(self.ds_train, self.train, '*b', label = 'train', linewidth = 3)
-                plt.plot(self.ds_test, self.test, '*g', label = 'test', linewidth = 3)
+                plt.plot(np.array(self.forecast["ds"]), np.array(self.forecast["yhat"]), 'g', label = 'yhat')
+                plt.plot(self.ds_train, self.train, 'b', label = 'train', linewidth = 3)
+                plt.plot(self.ds_test, self.test, 'k', label = 'test', linewidth = 3)
                 # pl.plot(np.array(self.forecast["ds"]), np.array(self.forecast["yhat_upper"]), 'y', label = 'yhat_upper')
                 # pl.plot(np.array(self.forecast["ds"]), np.array(self.forecast["yhat_lower"]), 'y', label = 'yhat_lower')
                 

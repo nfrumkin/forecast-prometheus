@@ -5,7 +5,6 @@ import pandas as pd
 import warnings
 import matplotlib.pyplot as plt
 warnings.filterwarnings("ignore")
-import pylab as pl
 import collections
 import argparse
 
@@ -58,18 +57,26 @@ class FourierForecast:
                 return self.forecast
 
         def graph(self):
-                pl.figure(figsize=(40,10))
-                
-                pl.plot(np.array(self.forecast["ds"]), np.array(self.forecast["yhat"]), 'y', label = 'yhat')
-                pl.plot(self.ds_train, self.train, '*b', label = 'train', linewidth = 3)
-                pl.plot(self.ds_test, self.test, '*g', label = 'test', linewidth = 3)
-                pl.plot(np.array(self.forecast["ds"]), np.array(self.forecast["yhat_upper"]), 'y', label = 'yhat_upper')
-                pl.plot(np.array(self.forecast["ds"]), np.array(self.forecast["yhat_lower"]), 'y', label = 'yhat_lower')
-                
-                pl.legend()
-                pl.show()
+                plt.figure(figsize=(40,10))
+                # ds = np.arange(0, len(np.array(self.forecast["ds"])))
+                # ds_train = np.arange(0,len(self.ds_train))
+                # ds_test = np.arange(len(self.ds_train),len(self.ds_train) + len(self.ds_test))
+                # plt.plot(ds_train, self.train, 'b', label = 'train', linewidth = 3)
+                # plt.plot(ds_test, self.test, 'g', label = 'test', linewidth = 3)
+                # plt.plot(ds, np.array(self.forecast["yhat"]), 'y', label = 'yhat')
+                ds_forecast = np.array(self.forecast["ds"])
+                forecast = np.array(self.forecast["yhat"])
 
+                ds_forecast = ds_forecast[len(self.ds_train):]
+                forecast = forecast[len(self.ds_train):]
+                plt.plot(self.ds_train, self.train, 'b', label = 'train', linewidth = 3)
+                plt.plot(self.ds_test, self.test, 'g', label = 'test', linewidth = 3)
+                plt.plot(ds_forecast,forecast, 'y', label = 'yhat')
 
+                # plt.plot(np.array(self.forecast["ds"]), np.array(self.forecast["yhat_upper"]), 'y', label = 'yhat_upper')
+                # plt.plot(np.array(self.forecast["ds"]), np.array(self.forecast["yhat_lower"]), 'y', label = 'yhat_lower')
+                
+                plt.legend()
 
 def calc_delta(vals):
         diff = vals - np.roll(vals, 1)
@@ -88,6 +95,7 @@ def monotonically_inc(vals):
         else:
                 return False
 
+
 if __name__ == "__main__":
         parser = argparse.ArgumentParser(description="frun Prophet training on time series")
 
@@ -100,6 +108,7 @@ if __name__ == "__main__":
         metric_name = args.metric
 
         pkl_file = open("../pkl_data/" + metric_name + "_dataframes.pkl", "rb")
+        #pkl_file = open("../data/real_data_test.pkl", "rb")
         dfs = pickle.load(pkl_file)
         pkl_file.close()
         key_vals = list(dfs.keys())
@@ -107,7 +116,10 @@ if __name__ == "__main__":
         selected = [args.key]
         for ind in selected:
                 key = key_vals[ind]
-                df = dfs[key]
+                #df = dfs["{'__name__': 'http_request_duration_microseconds', 'beta_kubernetes_io_arch': 'amd64', 'beta_kubernetes_io_instance_type': 'm4.xlarge', 'beta_kubernetes_io_os': 'linux', 'failure_domain_beta_kubernetes_io_region': 'us-east-2', 'failure_domain_beta_kubernetes_io_zone': 'us-east-2a', 'handler': 'prometheus', 'hostname': 'free-stg-node-compute-e0756', 'instance': 'ip-172-31-76-144.us-east-2.compute.internal', 'job': 'kubernetes-nodes-exporter', 'kubernetes_io_hostname': 'ip-172-31-76-144.us-east-2.compute.internal', 'logging_infra_fluentd': 'true', 'node_role_kubernetes_io_compute': 'true', 'quantile': '0.99', 'region': 'us-east-2', 'type': 'compute'}"]
+                df = dfs[key]                
+                # df["timestamps"] = df["ds"]
+                # df["values"] = df["y"]
                 df = df.sort_values(by=['timestamps'])
 
                 print(key)
@@ -123,6 +135,7 @@ if __name__ == "__main__":
                 train = df[0:int(0.7*len(vals))]
                 test = df[int(0.7*len(vals)):]
 
+                # graph(vals)
                 ff = FourierForecast(train, test)
                 forecast = ff.fit_model(test.shape[0])
                 
@@ -133,3 +146,5 @@ if __name__ == "__main__":
                 f.close()
 
                 ff.graph()
+                plt.savefig("../presentation/graphs/" + str(args.key) + "_" + args.metric + ".png", transparent=True)
+                plt.close()
